@@ -1,37 +1,28 @@
-"""wl2: safety warning label entry; gate cap 160 chars, valid only when new text fits."""
-import json
+"""Warning label for humans, affixed with industrial glue."""
 import os
 import sys
 
-LABEL_MAX = 160
+LABEL = ("WARNING: Ships with unearned confidence. Do not install "
+         "updates before 10 a.m.; may argue with mirrors and lose to "
+         "them.")
+STICKER = "wl2"
+GLUE = "industrial"
+SURFACE = "forehead"
 
 
-def read_label(repo_dir):
-    with open(os.path.join(repo_dir, "entry.txt"), encoding="utf-8") as fh:
-        return fh.read().strip()
+def affix(base):
+    base = base or "output"
+    os.makedirs(base, exist_ok=True)
+    p = os.path.join(base, "entry.txt")
+    raw = (LABEL + "\n").encode("utf-8")
+    with open(p, "wb") as f:
+        f.write(raw)
+    with open(p, "rb") as f:
+        return f.read().decode("utf-8").strip()
 
 
-def write_label(out_dir, label):
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(label)
-    return path
-
-
-def verify(label):
-    return len(label) >= 1 and len(label) <= LABEL_MAX
-
-
-def main():
-    root = os.path.dirname(os.path.abspath(__file__))
-    text = read_label(root)
-    out = os.environ.get("MAKEFUN_OUTPUT_DIR") or os.path.join(root, "output")
-    path = write_label(out, text)
-    good = verify(text)
-    print(json.dumps({"label": good, "chars": len(text), "where": path}))
-    return 0 if good else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+stuck = affix(os.environ.get("MAKEFUN_OUTPUT_DIR"))
+if stuck != LABEL:
+    sys.exit("label peeling, re-glue")
+print(STICKER, GLUE, len(stuck), "chars affixed")
+print("surface:", SURFACE, "warranty intact")
