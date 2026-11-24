@@ -1,32 +1,37 @@
-"""wlbl-1125: human warning label; gate 160 chars."""
-
+"""wl2: safety warning label entry; gate cap 160 chars, valid only when new text fits."""
 import json
 import os
+import sys
 
-TAMPER = 160
-
-
-def inspect_sticker(folder):
-    crate = os.path.join(folder, "entry.txt")
-    with open(crate, encoding="utf-8") as shrinkwrap:
-        sticker = shrinkwrap.read().strip()
-    if len(sticker) > TAMPER:
-        raise SystemExit("label overflows the shrink wrap: %d chars" % len(sticker))
-    if len(sticker) < 1:
-        raise SystemExit("no label at all")
-    return sticker
+LABEL_MAX = 160
 
 
-def apply_sticker(folder, sticker):
-    shelf = os.environ.get("MAKEFUN_OUTPUT_DIR") or folder
-    if not os.path.isdir(shelf):
-        os.makedirs(shelf, exist_ok=True)
-    peel_point = os.path.join(shelf, "entry.txt")
-    with open(peel_point, "w", encoding="utf-8", newline="\n") as adhesive:
-        adhesive.write(sticker + "\n")
-    return peel_point
+def read_label(repo_dir):
+    with open(os.path.join(repo_dir, "entry.txt"), encoding="utf-8") as fh:
+        return fh.read().strip()
 
 
-stock = os.path.dirname(os.path.abspath(__file__))
-sticker = inspect_sticker(stock)
-print(json.dumps({"caution": sticker[:42], "printed": len(sticker), "lot": "every human", "peel_point": apply_sticker(stock, sticker)}))
+def write_label(out_dir, label):
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "entry.txt")
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(label)
+    return path
+
+
+def verify(label):
+    return len(label) >= 1 and len(label) <= LABEL_MAX
+
+
+def main():
+    root = os.path.dirname(os.path.abspath(__file__))
+    text = read_label(root)
+    out = os.environ.get("MAKEFUN_OUTPUT_DIR") or os.path.join(root, "output")
+    path = write_label(out, text)
+    good = verify(text)
+    print(json.dumps({"label": good, "chars": len(text), "where": path}))
+    return 0 if good else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
