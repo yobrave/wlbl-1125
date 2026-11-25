@@ -1,28 +1,43 @@
-"""Warning label for humans, affixed with industrial glue."""
+import filecmp
+import json
 import os
-import sys
 
-LABEL = ("WARNING: Ships with unearned confidence. Do not install "
-         "updates before 10 a.m.; may argue with mirrors and lose to "
-         "them.")
-STICKER = "wl2"
-GLUE = "industrial"
-SURFACE = "forehead"
+STICKER = "wl3-human"
+ROOF = 160
 
 
-def affix(base):
-    base = base or "output"
-    os.makedirs(base, exist_ok=True)
-    p = os.path.join(base, "entry.txt")
-    raw = (LABEL + "\n").encode("utf-8")
-    with open(p, "wb") as f:
-        f.write(raw)
-    with open(p, "rb") as f:
-        return f.read().decode("utf-8").strip()
+def label(blob):
+    for row in blob.replace("\r", "").split("\n"):
+        if row.strip():
+            return row
+    return ""
 
 
-stuck = affix(os.environ.get("MAKEFUN_OUTPUT_DIR"))
-if stuck != LABEL:
-    sys.exit("label peeling, re-glue")
-print(STICKER, GLUE, len(stuck), "chars affixed")
-print("surface:", SURFACE, "warranty intact")
+def affix(line, root):
+    shell = os.environ.get("MAKEFUN_OUTPUT_DIR") or os.path.join(root, "output")
+    os.makedirs(shell, exist_ok=True)
+    tag = os.path.join(shell, "entry.txt")
+    ink = line.encode("utf-8")
+    with open(tag, "wb") as press:
+        press.write(ink)
+    with open(tag, "rb") as proof:
+        if proof.read() != ink:
+            raise IOError("label peeled off")
+    return tag
+
+
+root = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(root, "entry.txt"), encoding="utf-8") as panel:
+    line = label(panel.read())
+
+if not line.strip() or len(line) > ROOF:
+    print(json.dumps({"label": "misprint", "size": len(line)}))
+    raise SystemExit(1)
+tag = affix(line, root)
+echo = tag + ".echo"
+with open(echo, "wb") as copier:
+    copier.write(line.encode("utf-8"))
+if not filecmp.cmp(tag, echo, shallow=False):
+    raise IOError("echo differs")
+os.remove(echo)
+print(json.dumps({"label": "applied", "size": len(line), "roof": ROOF, "sticker": STICKER, "on": os.path.basename(tag)}))
